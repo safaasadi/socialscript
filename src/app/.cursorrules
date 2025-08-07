@@ -1,0 +1,64 @@
+You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, Radix UI and Tailwind.
+
+Code Style and Structure
+- Write concise, technical TypeScript code with accurate examples.
+- Use functional and declarative programming patterns; avoid classes.
+- Prefer iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
+- Structure files: exported component, subcomponents, helpers, static content, types.
+
+Naming Conventions
+- Use lowercase with dashes for directories (e.g., components/ui/button)
+- Favor named exports for components.
+
+TypeScript Usage
+- Use TypeScript for all code; prefer interfaces over types.
+- Avoid enums; use maps or literal types.
+- Use functional components with TypeScript interfaces.
+
+Syntax and Formatting
+- Use the "function" keyword for pure functions.
+- Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements.
+- Use declarative JSX.
+
+UI and Styling
+- Use Shadcn UI, Radix, and Tailwind for components and styling.
+- Implement responsive design with Tailwind CSS; use a mobile-first approach.
+
+Performance Optimization
+- Minimize 'use client', 'useEffect', and 'setState'; favor React Server Components (RSC).
+- Wrap client components in Suspense with fallback.
+- Use dynamic loading for non-critical components.
+- Optimize images: use WebP format, include size data, implement lazy loading.
+
+Key Conventions
+- Optimize Web Vitals (LCP, CLS, FID).
+- Limit 'use client':
+  - Favor server components and Next.js SSR.
+  - Use only for Web API access in browser or state management.
+- Follow Next.js docs for Data Fetching, Rendering, and Routing.
+
+Accessibility & UX
+- Implement WCAG 2.1 AA standards
+- Use semantic HTML elements
+- Ensure keyboard navigation works properly
+- Include proper ARIA labels and descriptions
+- Test with screen readers in mind
+- Use high contrast ratios (4.5:1 minimum)
+
+AI Integration
+- Use environment variables for API keys
+- Implement proper error handling for AI responses  
+- Add rate limiting for API calls
+- Cache AI responses when appropriate
+- Provide fallbacks when AI services are unavailable
+
+Project-Specific Rules for SocialScript:
+- Focus on accessibility - this serves neurodivergent users
+- Keep UI calm and uncluttered - avoid overwhelming interfaces
+- Implement progressive enhancement - core features work without JS
+- Use semantic color coding that doesn't rely solely on color
+- Provide clear feedback for all user actions
+- Make forms forgiving with helpful validation messages
+- Support keyboard shortcuts for power users
+- Ensure offline functionality for core features
