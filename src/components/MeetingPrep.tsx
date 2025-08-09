@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -17,84 +16,161 @@ import {
   FileText,
   MessageSquare,
   User,
-  Target
+  Target,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
+import { useUpcomingMeetings } from "../hooks/useApi";
+import type { Meeting, Participant } from "@/lib/api";
 
 export function MeetingPrep() {
-  const [meetings, setMeetings] = useState([
-    {
-      id: 1,
-      title: "Weekly Team Standup",
-      time: "9:00 AM - 9:30 AM",
-      date: "Today",
-      participants: [
-        { name: "Sarah Chen", role: "PM", style: "Direct, data-driven", energy: "high" },
-        { name: "Mike Rodriguez", role: "Dev Lead", style: "Collaborative, patient", energy: "medium" },
-        { name: "Alex Kim", role: "Designer", style: "Visual, detailed", energy: "low" }
-      ],
-      agenda: [
-        "Sprint progress review",
-        "Blocker discussion", 
-        "Next week planning"
-      ],
-      prepComplete: false,
-      context: "Regular team sync - keep updates brief and actionable"
-    },
-    {
-      id: 2,
-      title: "Client Presentation Review",
-      time: "2:00 PM - 3:00 PM", 
-      date: "Today",
-      participants: [
-        { name: "Jennifer Walsh", role: "Client", style: "Results-focused, formal", energy: "high" },
-        { name: "David Park", role: "Account Manager", style: "Relationship-builder", energy: "high" }
-      ],
-      agenda: [
-        "Q3 results presentation",
-        "Budget discussion",
-        "Q4 planning"
-      ],
-      prepComplete: true,
-      context: "High-stakes client meeting - prepare for detailed questions"
-    }
-  ]);
-
-  const [selectedMeeting, setSelectedMeeting] = useState(meetings[0]);
-  
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [checklist, setChecklist] = useState([
     { id: 1, task: "Review previous meeting notes", completed: false },
-    { id: 2, task: "Prepare status update (2-3 bullets max)", completed: true },
+    { id: 2, task: "Prepare status update (2-3 bullets max)", completed: false },
     { id: 3, task: "Think of 1-2 questions to ask", completed: false },
     { id: 4, task: "Check if any blockers need escalation", completed: false },
-    { id: 5, task: "Set intention for participation level", completed: true }
+    { id: 5, task: "Set intention for participation level", completed: false }
   ]);
+  const [participantInsights, setParticipantInsights] = useState<Participant[]>([]);
+  const [loadingInsights, setLoadingInsights] = useState(false);
 
-  const completedTasks = checklist.filter(item => item.completed).length;
-  const progressPercent = (completedTasks / checklist.length) * 100;
+  const { 
+    data: meetings, 
+    loading: meetingsLoading, 
+    error: meetingsError,
+    refetch: refetchMeetings
+  } = useUpcomingMeetings();
 
-  const communicationTips = {
-    "Sarah Chen": [
-      "Lead with data and metrics when giving updates",
-      "Keep explanations concise - she prefers bullet points",
-      "If you have concerns, present them with potential solutions"
-    ],
-    "Mike Rodriguez": [
-      "He's open to questions and collaboration",
-      "Feel free to ask for clarification if needed",
-      "He appreciates when team members help each other"
-    ],
-    "Alex Kim": [
-      "Visual aids help when explaining technical concepts",
-      "They tend to be quieter but have valuable input",
-      "Ask directly for their perspective on design-related items"
-    ]
+  // Set the first meeting as selected when meetings load
+  useEffect(() => {
+    if (meetings && meetings.length > 0 && !selectedMeeting) {
+      setSelectedMeeting(meetings[0]);
+    }
+  }, [meetings, selectedMeeting]);
+
+  // Load participant insights when meeting changes
+  useEffect(() => {
+    if (selectedMeeting) {
+      loadParticipantInsights();
+    }
+  }, [selectedMeeting]);
+
+  const loadParticipantInsights = async () => {
+    if (!selectedMeeting) return;
+    
+    setLoadingInsights(true);
+    try {
+      const participantIds = selectedMeeting.participants.map(p => p.id);
+     // const insights = await apiService.meetings.getParticipantInsights(participantIds);
+      //setParticipantInsights(insights);
+    } catch (error) {
+      console.error('Failed to load participant insights:', error);
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
+
+  const updatePrepStatus = async (meetingId: string, complete: boolean) => {
+    try {
+      //await apiService.meetings.updatePrepStatus(meetingId, complete);
+      refetchMeetings();
+    } catch (error) {
+      console.error('Failed to update prep status:', error);
+    }
   };
 
   const toggleChecklistItem = (id: number) => {
     setChecklist(prev => prev.map(item => 
       item.id === id ? { ...item, completed: !item.completed } : item
     ));
+    
+    // Update meeting prep status if all items are completed
+    const updatedChecklist = checklist.map(item => 
+      item.id === id ? { ...item, completed: !item.completed } : item
+    );
+    const allCompleted = updatedChecklist.every(item => item.completed);
+    
+    if (selectedMeeting && allCompleted !== selectedMeeting.prepComplete) {
+      updatePrepStatus(selectedMeeting.id, allCompleted);
+    }
   };
+
+  const completedTasks = checklist.filter(item => item.completed).length;
+  const progressPercent = (completedTasks / checklist.length) * 100;
+
+  // Loading state
+  if (meetingsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Calendar className="h-6 w-6 text-primary" />
+          <div>
+            <h2 className="text-xl font-semibold">Meeting Preparation Hub</h2>
+            <p className="text-muted-foreground">Get ready for successful workplace interactions</p>
+          </div>
+        </div>
+        
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading your meetings...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (meetingsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Calendar className="h-6 w-6 text-primary" />
+          <div>
+            <h2 className="text-xl font-semibold">Meeting Preparation Hub</h2>
+            <p className="text-muted-foreground">Get ready for successful workplace interactions</p>
+          </div>
+        </div>
+        
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Failed to load meetings: {meetingsError}</AlertDescription>
+        </Alert>
+        
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Button onClick={refetchMeetings}>Try Again</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // No meetings state
+  if (!meetings || meetings.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Calendar className="h-6 w-6 text-primary" />
+          <div>
+            <h2 className="text-xl font-semibold">Meeting Preparation Hub</h2>
+            <p className="text-muted-foreground">Get ready for successful workplace interactions</p>
+          </div>
+        </div>
+        
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <h3 className="font-medium mb-2">No upcoming meetings</h3>
+            <p className="text-sm text-muted-foreground">
+              When you have meetings scheduled, they'll appear here for preparation.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -121,7 +197,7 @@ export function MeetingPrep() {
               <div 
                 key={meeting.id}
                 className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                  selectedMeeting.id === meeting.id ? 'border-primary bg-primary/5' : 'hover:bg-accent/50'
+                  selectedMeeting?.id === meeting.id ? 'border-primary bg-primary/5' : 'hover:bg-accent/50'
                 }`}
                 onClick={() => setSelectedMeeting(meeting)}
               >
@@ -148,58 +224,60 @@ export function MeetingPrep() {
         </Card>
 
         {/* Meeting Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
-                Meeting Overview
-              </div>
-              <Badge variant={selectedMeeting.prepComplete ? "default" : "secondary"}>
-                {selectedMeeting.prepComplete ? "Ready" : "In Progress"}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="font-medium mb-2">{selectedMeeting.title}</h4>
-              <p className="text-sm text-muted-foreground mb-3">{selectedMeeting.context}</p>
-              
-              <div className="space-y-2 text-sm">
+        {selectedMeeting && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span>{selectedMeeting.date} • {selectedMeeting.time}</span>
+                  <Target className="h-5 w-5" />
+                  Meeting Overview
                 </div>
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span>{selectedMeeting.participants.length} participants</span>
+                <Badge variant={selectedMeeting.prepComplete ? "default" : "secondary"}>
+                  {selectedMeeting.prepComplete ? "Ready" : "In Progress"}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h4 className="font-medium mb-2">{selectedMeeting.title}</h4>
+                <p className="text-sm text-muted-foreground mb-3">{selectedMeeting.context}</p>
+                
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedMeeting.date} • {selectedMeeting.time}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedMeeting.participants.length} participants</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div>
-              <h4 className="font-medium mb-2">Agenda</h4>
-              <ul className="space-y-1">
-                {selectedMeeting.agenda.map((item, index) => (
-                  <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-medium mb-2">Preparation Progress</h4>
-              <div className="space-y-2">
-                <Progress value={progressPercent} className="h-2" />
-                <p className="text-xs text-muted-foreground">
-                  {completedTasks} of {checklist.length} tasks completed
-                </p>
+              <div>
+                <h4 className="font-medium mb-2">Agenda</h4>
+                <ul className="space-y-1">
+                  {selectedMeeting.agenda.map((item, index) => (
+                    <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+
+              <div>
+                <h4 className="font-medium mb-2">Preparation Progress</h4>
+                <div className="space-y-2">
+                  <Progress value={progressPercent} className="h-2" />
+                  <p className="text-xs text-muted-foreground">
+                    {completedTasks} of {checklist.length} tasks completed
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Preparation Checklist */}
         <Card>
@@ -238,117 +316,126 @@ export function MeetingPrep() {
       </div>
 
       {/* Participant Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Participant Insights
-            </CardTitle>
-            <CardDescription>Understand communication styles and preferences</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {selectedMeeting.participants.map((participant, index) => (
-                <div key={index} className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h4 className="font-medium">{participant.name}</h4>
-                      <p className="text-sm text-muted-foreground">{participant.role}</p>
-                    </div>
-                    <Badge 
-                      variant={participant.energy === 'high' ? 'default' : 
-                              participant.energy === 'medium' ? 'secondary' : 'outline'}
-                    >
-                      {participant.energy} energy
-                    </Badge>
-                  </div>
-                  <p className="text-sm mb-3 font-medium">Style: {participant.style}</p>
-                  
-                  {communicationTips[participant.name as keyof typeof communicationTips] && (
-                    <div>
-                      <h5 className="text-sm font-medium mb-1">Communication Tips:</h5>
-                      <ul className="space-y-1">
-                        {communicationTips[participant.name as keyof typeof communicationTips]?.slice(0, 2).map((tip, tipIndex) => (
-                          <li key={tipIndex} className="text-xs text-muted-foreground flex items-start gap-2">
-                            <Lightbulb className="h-3 w-3 mt-0.5 text-amber-500 flex-shrink-0" />
-                            {tip}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+      {selectedMeeting && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Participant Insights
+              </CardTitle>
+              <CardDescription>Understand communication styles and preferences</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingInsights ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                  <p className="text-sm text-muted-foreground">Loading participant insights...</p>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="space-y-4">
+                  {(participantInsights.length > 0 ? participantInsights : selectedMeeting.participants).map((participant, index) => (
+                    <div key={index} className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <h4 className="font-medium">{participant.name}</h4>
+                          <p className="text-sm text-muted-foreground">{participant.role}</p>
+                        </div>
+                        <Badge 
+                          variant={participant.energy === 'high' ? 'default' : 
+                                  participant.energy === 'medium' ? 'secondary' : 'outline'}
+                        >
+                          {participant.energy} energy
+                        </Badge>
+                      </div>
+                      <p className="text-sm mb-3 font-medium">Style: {participant.style}</p>
+                      
+                      {participant.communicationTips && participant.communicationTips.length > 0 && (
+                        <div>
+                          <h5 className="text-sm font-medium mb-1">Communication Tips:</h5>
+                          <ul className="space-y-1">
+                            {participant.communicationTips.slice(0, 2).map((tip, tipIndex) => (
+                              <li key={tipIndex} className="text-xs text-muted-foreground flex items-start gap-2">
+                                <Lightbulb className="h-3 w-3 mt-0.5 text-amber-500 flex-shrink-0" />
+                                {tip}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Meeting Templates & Scripts */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Templates & Scripts
-            </CardTitle>
-            <CardDescription>Ready-to-use phrases for common situations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="opening" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="opening">Opening</TabsTrigger>
-                <TabsTrigger value="updates">Updates</TabsTrigger>
-                <TabsTrigger value="questions">Questions</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="opening" className="space-y-3 mt-4">
-                <div className="p-3 bg-accent/50 rounded-lg">
-                  <p className="text-sm font-medium mb-1">Acknowledging Previous Meeting</p>
-                  <p className="text-xs text-muted-foreground">
-                    "Following up on our discussion about [topic], I've made progress on..."
-                  </p>
-                </div>
-                <div className="p-3 bg-accent/50 rounded-lg">
-                  <p className="text-sm font-medium mb-1">Setting Expectations</p>
-                  <p className="text-xs text-muted-foreground">
-                    "I have a quick update and one question, should take about 2 minutes."
-                  </p>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="updates" className="space-y-3 mt-4">
-                <div className="p-3 bg-accent/50 rounded-lg">
-                  <p className="text-sm font-medium mb-1">Progress Report</p>
-                  <p className="text-xs text-muted-foreground">
-                    "I completed [X] and [Y]. Currently working on [Z], expected completion by [date]."
-                  </p>
-                </div>
-                <div className="p-3 bg-accent/50 rounded-lg">
-                  <p className="text-sm font-medium mb-1">Flagging Issues</p>
-                  <p className="text-xs text-muted-foreground">
-                    "I've hit a blocker with [issue]. I think the solution might be [suggestion]."
-                  </p>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="questions" className="space-y-3 mt-4">
-                <div className="p-3 bg-accent/50 rounded-lg">
-                  <p className="text-sm font-medium mb-1">Asking for Clarification</p>
-                  <p className="text-xs text-muted-foreground">
-                    "Could you help me understand the priority between [A] and [B]?"
-                  </p>
-                </div>
-                <div className="p-3 bg-accent/50 rounded-lg">
-                  <p className="text-sm font-medium mb-1">Resource Requests</p>
-                  <p className="text-xs text-muted-foreground">
-                    "To move forward with [task], I'll need [specific resource]. What's the best way to get that?"
-                  </p>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      </div>
+          {/* Meeting Templates & Scripts */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Templates & Scripts
+              </CardTitle>
+              <CardDescription>Ready-to-use phrases for common situations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="opening" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="opening">Opening</TabsTrigger>
+                  <TabsTrigger value="updates">Updates</TabsTrigger>
+                  <TabsTrigger value="questions">Questions</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="opening" className="space-y-3 mt-4">
+                  <div className="p-3 bg-accent/50 rounded-lg">
+                    <p className="text-sm font-medium mb-1">Acknowledging Previous Meeting</p>
+                    <p className="text-xs text-muted-foreground">
+                      "Following up on our discussion about [topic], I've made progress on..."
+                    </p>
+                  </div>
+                  <div className="p-3 bg-accent/50 rounded-lg">
+                    <p className="text-sm font-medium mb-1">Setting Expectations</p>
+                    <p className="text-xs text-muted-foreground">
+                      "I have a quick update and one question, should take about 2 minutes."
+                    </p>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="updates" className="space-y-3 mt-4">
+                  <div className="p-3 bg-accent/50 rounded-lg">
+                    <p className="text-sm font-medium mb-1">Progress Report</p>
+                    <p className="text-xs text-muted-foreground">
+                      "I completed [X] and [Y]. Currently working on [Z], expected completion by [date]."
+                    </p>
+                  </div>
+                  <div className="p-3 bg-accent/50 rounded-lg">
+                    <p className="text-sm font-medium mb-1">Flagging Issues</p>
+                    <p className="text-xs text-muted-foreground">
+                      "I've hit a blocker with [issue]. I think the solution might be [suggestion]."
+                    </p>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="questions" className="space-y-3 mt-4">
+                  <div className="p-3 bg-accent/50 rounded-lg">
+                    <p className="text-sm font-medium mb-1">Asking for Clarification</p>
+                    <p className="text-xs text-muted-foreground">
+                      "Could you help me understand the priority between [A] and [B]?"
+                    </p>
+                  </div>
+                  <div className="p-3 bg-accent/50 rounded-lg">
+                    <p className="text-sm font-medium mb-1">Resource Requests</p>
+                    <p className="text-xs text-muted-foreground">
+                      "To move forward with [task], I'll need [specific resource]. What's the best way to get that?"
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

@@ -130,3 +130,5 @@ export function LoginForm({ onSuccess, onSwitchToSignup }: LoginFormProps) {
     </Card>
   );
 }
+
+

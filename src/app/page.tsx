@@ -1,188 +1,223 @@
 "use client";
 
-import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { LoginForm } from "@/components/auth/LoginForm";
-import { SignupForm } from "@/components/auth/SignupForm";
-import { Dashboard } from "@/components/Dashboard";
-import { MeetingPrep } from "@/components/MeetingPrep";
-import { CommunityHub } from "@/components/CommunityHub";
-import { RealTimeDecoder } from "@/components/RealTimeDecoder";
-import { EmailToneAnalyzer } from "@/components/EmailToneAnalyzer";
-import { KnowledgeBase } from "@/components/KnowledgeBase";
-import { Settings } from "@/components/Settings";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   Brain, 
+  MessageSquare, 
+  Users, 
   Shield, 
   Heart, 
-  Users, 
-  MessageSquare, 
-  Sparkles,
-  CheckCircle,
   ArrowRight,
-  Star,
-  Zap,
-  Globe,
-  Lock,
-  LogOut
+  Sparkles,
+  CheckCircle
 } from "lucide-react";
 
 export default function Home() {
-  const { user, loading, signOut } = useAuth();
-  const [showSignup, setShowSignup] = useState(false);
-  const [activeTab, setActiveTab] = useState("dashboard");
-
   const features = [
     {
       icon: Brain,
       title: "AI-Powered Decoding",
-      description: "Real-time analysis of social cues and communication patterns",
-      color: "from-blue-500 to-cyan-500"
+      description: "Understand social cues and communication patterns in real-time",
+      color: "text-blue-600"
     },
     {
       icon: Shield,
       title: "Safe Environment",
       description: "Supportive community designed specifically for neurodivergent individuals",
-      color: "from-purple-500 to-pink-500"
+      color: "text-purple-600"
     },
     {
       icon: Heart,
       title: "Understanding First",
       description: "Learn at your own pace with personalized guidance and support",
-      color: "from-emerald-500 to-teal-500"
+      color: "text-green-600"
     }
   ];
 
   const benefits = [
-    "Clear, uncluttered interface design",
-    "High contrast ratios for better readability",
-    "Full keyboard navigation support",
-    "Screen reader and assistive technology friendly",
-    "Predictable interactions and layouts",
-    "Reduced sensory overload and distractions"
+    "Clear, uncluttered interface",
+    "High contrast design",
+    "Keyboard navigation support",
+    "Screen reader friendly",
+    "Predictable interactions",
+    "Reduced sensory overload"
   ];
 
-  const testimonials = [
-    {
-      name: "Alex Chen",
-      role: "Software Developer",
-      content: "SocialScript has completely changed how I navigate workplace communication. The real-time decoding feature is incredible.",
-      rating: 5
-    },
-    {
-      name: "Sarah Williams",
-      role: "Marketing Manager",
-      content: "Finally, a platform that understands my needs. The community is incredibly supportive and understanding.",
-      rating: 5
-    },
-    {
-      name: "Michael Rodriguez",
-      role: "Student",
-      content: "The accessibility features are amazing. I can focus on learning without worrying about sensory overload.",
-      rating: 5
-    }
-  ];
-
-  // Function to render the active component based on tab
-  const renderActiveComponent = () => {
-    switch (activeTab) {
-      case "dashboard":
-        return <Dashboard activeTab={activeTab} setActiveTab={setActiveTab} />;
-      case "meetings":
-        return <MeetingPrep />;
-      case "community":
-        return <CommunityHub />;
-      case "decoder":
-        return <RealTimeDecoder />;
-      case "email":
-        return <EmailToneAnalyzer />;
-      case "library":
-        return <KnowledgeBase />;
-      case "settings":
-        return <Settings />;
-      default:
-        return <Dashboard activeTab={activeTab} setActiveTab={setActiveTab} />;
-    }
-  };
-
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-xl">S</span>
-          </div>
-          <p className="text-slate-600 dark:text-slate-300">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show authentication forms if not logged in
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          {showSignup ? (
-            <SignupForm onSwitchToLogin={() => setShowSignup(false)} />
-          ) : (
-            <LoginForm onSwitchToSignup={() => setShowSignup(true)} />
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Show main app if authenticated
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
       {/* Header */}
-      <header className="relative z-50">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex items-center justify-between py-6">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold text-xl">S</span>
-                </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-200 bg-clip-text text-transparent">
-                  SocialScript
-                </h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Welcome, {user.email}</p>
-              </div>
+      <header className="container mx-auto px-4 py-6">
+        <nav className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-xl">S</span>
             </div>
-            
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium">
-                Features
-              </a>
-              <a href="#community" className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium">
-                Community
-              </a>
-              <a href="#pricing" className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium">
-                Pricing
-              </a>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <button 
-                onClick={signOut}
-                className="px-4 py-2 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors font-medium flex items-center space-x-2"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          </nav>
-        </div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+              SocialScript
+            </h1>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" className="text-slate-700 dark:text-slate-300">
+              Sign In
+            </Button>
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              Get Started
+            </Button>
+          </div>
+        </nav>
       </header>
 
-      {/* Main App Content */}
-      {renderActiveComponent()}
+      {/* Hero Section */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="max-w-4xl mx-auto text-center">
+          <Badge variant="secondary" className="mb-6">
+            <Sparkles className="w-4 h-4 mr-2" />
+            Designed for neurodivergent users
+          </Badge>
+          
+          <h2 className="text-4xl md:text-6xl font-bold text-slate-900 dark:text-white mb-6 leading-tight">
+            Navigate social situations with
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+              confidence
+            </span>
+          </h2>
+          
+          <p className="text-xl text-slate-600 dark:text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed">
+            SocialScript helps you understand social cues, decode communication, 
+            and build meaningful connections in a supportive, accessible environment.
+          </p>
+
+          {/* Main CTA */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+            <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg px-8 py-4">
+              Start Your Journey
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Button>
+            <Button size="lg" variant="outline" className="text-lg px-8 py-4">
+              Watch Demo
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Feature Cards */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">
+              Why Choose SocialScript?
+            </h3>
+            <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+              Our platform is built with accessibility and understanding at its core
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-16">
+            {features.map((feature, index) => (
+              <Card key={index} className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
+                <CardHeader className="text-center">
+                  <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <feature.icon className={`w-8 h-8 ${feature.color}`} />
+                  </div>
+                  <CardTitle className="text-xl text-slate-900 dark:text-white">
+                    {feature.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-center">
+                  <CardDescription className="text-slate-600 dark:text-slate-300 text-base">
+                    {feature.description}
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Accessibility Benefits */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="max-w-4xl mx-auto">
+          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-slate-800 dark:to-slate-700 border-0 shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl text-slate-900 dark:text-white">
+                Built for Accessibility
+              </CardTitle>
+              <CardDescription className="text-slate-600 dark:text-slate-300">
+                Every feature is designed with neurodivergent users in mind
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-4">
+                {benefits.map((benefit, index) => (
+                  <div key={index} className="flex items-center space-x-3">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                    <span className="text-slate-700 dark:text-slate-300">{benefit}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Community Preview */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="max-w-4xl mx-auto text-center">
+          <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader>
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              </div>
+              <CardTitle className="text-2xl text-slate-900 dark:text-white">
+                Join Our Supportive Community
+              </CardTitle>
+              <CardDescription className="text-slate-600 dark:text-slate-300">
+                Connect with others who understand your journey
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+                  Join Community
+                </Button>
+                <Button size="lg" variant="outline">
+                  Learn More
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="container mx-auto px-4 py-8 mt-16 border-t border-slate-200 dark:border-slate-700">
+        <div className="flex flex-col md:flex-row justify-between items-center">
+          <div className="flex items-center space-x-3 mb-4 md:mb-0">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">S</span>
+            </div>
+            <span className="text-slate-600 dark:text-slate-300">
+              © 2024 SocialScript. Made with accessibility in mind.
+            </span>
+          </div>
+          <div className="flex space-x-6">
+            <a href="#" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+              Privacy
+            </a>
+            <a href="#" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+              Terms
+            </a>
+            <a href="#" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+              Accessibility
+            </a>
+            <a href="#" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+              Support
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

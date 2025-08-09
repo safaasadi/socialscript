@@ -4,7 +4,6 @@ import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Slider } from "./ui/slider";
 import { 
@@ -17,14 +16,19 @@ import {
   Copy,
   Send,
   RefreshCw,
-  Eye
+  Eye,
+  Loader2,
+  AlertCircle,
+  Save,
+  MessageSquare
 } from "lucide-react";
+import { useEmailAnalysis, useKnowledgeActions } from "@/hooks/useApi";
+import type { EmailAnalysis } from "@/lib/api";
 
 export function EmailToneAnalyzer() {
   const [originalEmail, setOriginalEmail] = useState("");
   const [revisedEmail, setRevisedEmail] = useState("");
-  const [analysis, setAnalysis] = useState<any>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<EmailAnalysis | null>(null);
   const [toneSliders, setToneSliders] = useState({
     formality: [50],
     directness: [50],
@@ -32,63 +36,83 @@ export function EmailToneAnalyzer() {
     urgency: [30]
   });
 
-  const handleAnalyze = () => {
+  const { analyzeEmail, generateRevision, loading: isAnalyzing, error: analysisError } = useEmailAnalysis();
+  const { saveItem, loading: isSaving } = useKnowledgeActions();
+
+  const handleAnalyze = async () => {
     if (!originalEmail.trim()) return;
     
-    setIsAnalyzing(true);
+    try {
+      const result = await analyzeEmail(originalEmail);
+      setAnalysis(result);
+      
+      // If the API returns a revised version, use it
+      if (result.revisedVersion) {
+        setRevisedEmail(result.revisedVersion);
+      }
+    } catch (error) {
+      console.error('Failed to analyze email:', error);
+      // Error is handled by the hook
+    }
+  };
+
+  const handleToneAdjustment = async () => {
+    if (!originalEmail.trim()) return;
     
-    // Simulate analysis
-    setTimeout(() => {
-      const mockAnalysis = {
-        overallTone: "Professional but could be warmer",
-        toneScores: {
-          formality: 75,
-          directness: 85,
-          warmth: 35,
-          urgency: 60,
-          clarity: 80
-        },
-        insights: [
-          { type: "warning", message: "Email may come across as somewhat cold or impersonal" },
-          { type: "success", message: "Clear and direct communication style" },
-          { type: "info", message: "Appropriate level of formality for workplace" }
-        ],
-        suggestions: [
-          "Consider adding a personal greeting or warm opening",
-          "The closing could be more collaborative",
-          "Some phrases might benefit from softening language"
-        ],
-        highlightedPhrases: [
-          { text: "I need this completed", severity: "warning", suggestion: "Could you please complete this when possible?" },
-          { text: "Let me know", severity: "info", suggestion: "I'd appreciate your thoughts on this" },
-          { text: "As discussed", severity: "success", suggestion: "This phrase provides good context" }
-        ]
+    try {
+      const toneAdjustments = {
+        formality: toneSliders.formality[0],
+        directness: toneSliders.directness[0],
+        warmth: toneSliders.warmth[0],
+        urgency: toneSliders.urgency[0]
       };
       
-      setAnalysis(mockAnalysis);
-      generateRevisedVersion();
-      setIsAnalyzing(false);
-    }, 1500);
+      const result = await generateRevision(originalEmail, toneAdjustments);
+      setRevisedEmail(result.revisedContent);
+      setAnalysis(result.analysis);
+    } catch (error) {
+      console.error('Failed to generate revision:', error);
+    }
   };
 
-  const generateRevisedVersion = () => {
-    // This would normally use AI to generate an improved version
-    setRevisedEmail(originalEmail.replace(
-      "I need this completed",
-      "Could you please help me complete this when you have a chance?"
-    ).replace(
-      "Let me know",
-      "I'd appreciate your thoughts on this"
-    ));
+  const handleSaveAnalysis = async () => {
+    if (!analysis || !originalEmail) return;
+    
+    try {
+      await saveItem({
+        title: `Email Analysis: "${originalEmail.substring(0, 50)}${originalEmail.length > 50 ? '...' : ''}"`,
+        type: 'analysis',
+        category: 'Email Communication',
+        tags: ['email', 'tone-analysis'],
+        summary: analysis.overallTone,
+        content: JSON.stringify({ original: originalEmail, revised: revisedEmail, analysis }),
+        folder: 'saved',
+        favorite: false,
+        confidence: Math.max(...Object.values(analysis.toneScores))
+      });
+      
+      console.log('Email analysis saved to knowledge base');
+    } catch (error) {
+      console.error('Failed to save analysis:', error);
+    }
   };
 
-  const handleToneAdjustment = () => {
-    // Regenerate based on tone sliders
-    setIsAnalyzing(true);
-    setTimeout(() => {
-      generateRevisedVersion();
-      setIsAnalyzing(false);
-    }, 1000);
+  const handleCopyRevised = () => {
+    if (revisedEmail) {
+      navigator.clipboard.writeText(revisedEmail);
+    }
+  };
+
+  const resetForm = () => {
+    setOriginalEmail("");
+    setRevisedEmail("");
+    setAnalysis(null);
+    setToneSliders({
+      formality: [50],
+      directness: [50],
+      warmth: [50],
+      urgency: [30]
+    });
   };
 
   const ToneIndicator = ({ label, value, color, trend }: { 
@@ -121,6 +145,14 @@ export function EmailToneAnalyzer() {
         </div>
       </div>
 
+      {/* Error Alert */}
+      {analysisError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{analysisError}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Original Email */}
         <Card>
@@ -147,27 +179,39 @@ Thanks"
               className="min-h-[300px] resize-none text-sm"
             />
             
-            <div className="flex gap-2">
-              <Button onClick={handleAnalyze} disabled={!originalEmail.trim() || isAnalyzing} className="flex-1">
-                {isAnalyzing ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    Analyze Tone
-                  </>
-                )}
-              </Button>
-              <Button variant="outline" onClick={() => setOriginalEmail("")}>
-                <RefreshCw className="h-4 w-4" />
-              </Button>
+            <div className="flex justify-between items-center">
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Paste Text
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Upload Email
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleAnalyze} disabled={!originalEmail.trim() || isAnalyzing}>
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <TrendingUp className="h-4 w-4 mr-2" />
+                      Analyze Tone
+                    </>
+                  )}
+                </Button>
+                <Button variant="outline" onClick={resetForm}>
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
-            {/* Real-time highlights would appear here */}
-            {analysis && analysis.highlightedPhrases && (
+            {/* Real-time highlights */}
+            {analysis?.highlightedPhrases && (
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Highlighted Phrases</h4>
                 {analysis.highlightedPhrases.map((phrase: any, index: number) => (
@@ -195,10 +239,17 @@ Thanks"
             <CardDescription>Understand how your email might be perceived</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!analysis && (
+            {!analysis && !isAnalyzing && (
               <div className="text-center py-12 text-muted-foreground">
                 <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Paste an email to see tone analysis</p>
+              </div>
+            )}
+
+            {isAnalyzing && (
+              <div className="text-center py-12">
+                <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
+                <p className="text-muted-foreground">Analyzing email tone...</p>
               </div>
             )}
 
@@ -215,7 +266,7 @@ Thanks"
                   <h4 className="font-medium">Tone Dimensions</h4>
                   <ToneIndicator label="Formality" value={analysis.toneScores.formality} color="text-blue-600" />
                   <ToneIndicator label="Directness" value={analysis.toneScores.directness} color="text-purple-600" />
-                  <ToneIndicator label="Warmth" value={analysis.toneScores.warmth} color="text-orange-600" trend="down" />
+                  <ToneIndicator label="Warmth" value={analysis.toneScores.warmth} color="text-orange-600" trend={analysis.toneScores.warmth < 50 ? "down" : "up"} />
                   <ToneIndicator label="Urgency" value={analysis.toneScores.urgency} color="text-red-600" />
                   <ToneIndicator label="Clarity" value={analysis.toneScores.clarity} color="text-green-600" trend="up" />
                 </div>
@@ -278,9 +329,23 @@ Thanks"
                     </div>
                   </div>
 
-                  <Button onClick={handleToneAdjustment} variant="outline" className="w-full">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Apply Tone Adjustments
+                  <Button 
+                    onClick={handleToneAdjustment} 
+                    variant="outline" 
+                    className="w-full"
+                    disabled={isAnalyzing}
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Apply Tone Adjustments
+                      </>
+                    )}
                   </Button>
                 </div>
 
@@ -300,6 +365,27 @@ Thanks"
                     </div>
                   ))}
                 </div>
+
+                {/* Save Analysis */}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSaveAnalysis}
+                  disabled={isSaving}
+                  className="w-full"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Analysis
+                    </>
+                  )}
+                </Button>
               </>
             )}
           </CardContent>
@@ -315,7 +401,7 @@ Thanks"
               </div>
               {revisedEmail && (
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" onClick={handleCopyRevised}>
                     <Copy className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="sm">
@@ -327,10 +413,15 @@ Thanks"
             <CardDescription>AI-enhanced version with improved tone</CardDescription>
           </CardHeader>
           <CardContent>
-            {!revisedEmail ? (
+            {!revisedEmail && !isAnalyzing ? (
               <div className="text-center py-12 text-muted-foreground">
                 <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Analyze an email to see the improved version</p>
+              </div>
+            ) : isAnalyzing ? (
+              <div className="text-center py-12">
+                <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
+                <p className="text-muted-foreground">Generating improved version...</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -345,7 +436,7 @@ Thanks"
                     <Send className="h-4 w-4 mr-2" />
                     Use This Version
                   </Button>
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={handleCopyRevised}>
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
@@ -381,17 +472,17 @@ Thanks"
               <div>
                 <h4 className="font-medium mb-3 text-red-600">Original Tone Profile</h4>
                 <div className="space-y-2">
-                  <ToneIndicator label="Warmth" value={35} color="text-red-600" />
-                  <ToneIndicator label="Collaboration" value={40} color="text-red-600" />
-                  <ToneIndicator label="Approachability" value={30} color="text-red-600" />
+                  <ToneIndicator label="Warmth" value={analysis.toneScores.warmth} color="text-red-600" />
+                  <ToneIndicator label="Formality" value={analysis.toneScores.formality} color="text-red-600" />
+                  <ToneIndicator label="Directness" value={analysis.toneScores.directness} color="text-red-600" />
                 </div>
               </div>
               <div>
                 <h4 className="font-medium mb-3 text-green-600">Improved Tone Profile</h4>
                 <div className="space-y-2">
-                  <ToneIndicator label="Warmth" value={70} color="text-green-600" trend="up" />
-                  <ToneIndicator label="Collaboration" value={85} color="text-green-600" trend="up" />
-                  <ToneIndicator label="Approachability" value={75} color="text-green-600" trend="up" />
+                  <ToneIndicator label="Warmth" value={Math.min(analysis.toneScores.warmth + 35, 100)} color="text-green-600" trend="up" />
+                  <ToneIndicator label="Collaboration" value={Math.min(analysis.toneScores.directness + 25, 100)} color="text-green-600" trend="up" />
+                  <ToneIndicator label="Approachability" value={Math.min(analysis.toneScores.warmth + 45, 100)} color="text-green-600" trend="up" />
                 </div>
               </div>
             </div>

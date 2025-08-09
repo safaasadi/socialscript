@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Alert, AlertDescription } from "./ui/alert";
 import { 
   Users, 
   Heart, 
@@ -15,85 +16,126 @@ import {
   TrendingUp,
   Clock,
   Star,
-  Plus
+  Plus,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
+import { 
+  useCommunityScenarios, 
+  useCommunityStats, 
+  useTrendingTopics, 
+  useScenarioActions,
+  useDebounce 
+} from "../hooks/useApi";
 
 export function CommunityHub() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  
+  // Debounce search to avoid too many API calls
+  const debouncedSearch = useDebounce(searchQuery, 300);
+  
+  // API hooks
+  const { 
+    data: scenariosData, 
+    loading: scenariosLoading, 
+    error: scenariosError,
+    refetch: refetchScenarios
+  } = useCommunityScenarios(debouncedSearch, selectedCategory);
+  
+  const { 
+    data: stats, 
+    loading: statsLoading, 
+    error: statsError 
+  } = useCommunityStats();
+  
+  const { 
+    data: trendingTopics, 
+    loading: trendingLoading, 
+    error: trendingError 
+  } = useTrendingTopics();
 
-  const scenarios = [
-    {
-      id: 1,
-      title: "Decoding 'Let's take this offline'",
-      author: "Alex M.",
-      category: "Meeting Dynamics",
-      tags: ["meetings", "indirect-communication", "professional"],
-      votes: 47,
-      comments: 12,
-      bookmarks: 23,
-      timeAgo: "2 days ago",
-      preview: "My manager said this during our team meeting when I brought up a concern about the project timeline. I wasn't sure if I was being dismissed or if they genuinely wanted to discuss it privately...",
-      solution: "It usually means they want to discuss it in a smaller group or one-on-one. Not necessarily dismissive - often about finding the right setting for deeper discussion.",
-      confidence: 92
-    },
-    {
-      id: 2,
-      title: "Understanding 'Thanks in advance'",
-      author: "Sarah K.",
-      category: "Email Communication",
-      tags: ["email", "tone", "expectations"],
-      votes: 35,
-      comments: 8,
-      bookmarks: 15,
-      timeAgo: "1 week ago",
-      preview: "I keep seeing 'Thanks in advance' in emails and I'm never sure what it really means. Is it polite or pushy?",
-      solution: "It's generally polite but implies expectation that you'll complete the task. It's a soft way of saying the request is important.",
-      confidence: 88
-    },
-    {
-      id: 3,
-      title: "Client said our proposal was 'interesting'",
-      author: "Mike R.",
-      category: "Client Relations",
-      tags: ["clients", "feedback", "sales"],
-      votes: 28,
-      comments: 15,
-      bookmarks: 11,
-      timeAgo: "3 days ago",
-      preview: "After our presentation, the client said our proposal was 'quite interesting' and they'll 'think about it.' I can't tell if this is good or bad...",
-      solution: "'Interesting' is often neutral-to-positive but non-committal. They're likely comparing options. Follow up with specific questions about concerns.",
-      confidence: 85
-    }
-  ];
+  const { voteScenario, bookmarkScenario, loading: actionLoading } = useScenarioActions();
 
+  // Static categories - you might want to fetch these from API too
   const categories = [
-    { id: "all", name: "All Scenarios", count: 156 },
-    { id: "meetings", name: "Meeting Dynamics", count: 43 },
-    { id: "email", name: "Email Communication", count: 38 },
-    { id: "feedback", name: "Feedback & Reviews", count: 25 },
-    { id: "clients", name: "Client Relations", count: 22 },
-    { id: "teamwork", name: "Team Collaboration", count: 28 }
+    { id: "all", name: "All Scenarios", count: scenariosData?.total || 0 },
+    { id: "meetings", name: "Meeting Dynamics", count: 0 },
+    { id: "email", name: "Email Communication", count: 0 },
+    { id: "feedback", name: "Feedback & Reviews", count: 0 },
+    { id: "clients", name: "Client Relations", count: 0 },
+    { id: "teamwork", name: "Team Collaboration", count: 0 }
   ];
 
-  const trendingTopics = [
-    { topic: "Hybrid meeting etiquette", discussions: 23 },
-    { topic: "Email tone in remote work", discussions: 18 },
-    { topic: "Performance review language", discussions: 15 },
-    { topic: "Cross-cultural communication", discussions: 12 }
-  ];
+  const handleVote = async (scenarioId: string, direction: 'up' | 'down') => {
+    try {
+      await voteScenario(scenarioId, direction);
+      refetchScenarios(); // Refresh the list to show updated vote count
+    } catch (error) {
+      console.error('Failed to vote:', error);
+    }
+  };
 
-  const filteredScenarios = scenarios.filter(scenario => {
-    const matchesSearch = searchQuery === "" || 
-      scenario.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      scenario.preview.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCategory = selectedCategory === "all" || 
-      scenario.category.toLowerCase().includes(selectedCategory) ||
-      scenario.tags.some(tag => tag.includes(selectedCategory));
+  const handleBookmark = async (scenarioId: string) => {
+    try {
+      await bookmarkScenario(scenarioId);
+      refetchScenarios(); // Refresh the list to show updated bookmark status
+    } catch (error) {
+      console.error('Failed to bookmark:', error);
+    }
+  };
 
-    return matchesSearch && matchesCategory;
-  });
+  // Loading state
+  if (scenariosLoading && !scenariosData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Users className="h-6 w-6 text-primary" />
+          <div>
+            <h2 className="text-xl font-semibold">Community Hub</h2>
+            <p className="text-muted-foreground">Learn from shared workplace scenarios and contribute your own</p>
+          </div>
+        </div>
+        
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading community scenarios...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (scenariosError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Users className="h-6 w-6 text-primary" />
+          <div>
+            <h2 className="text-xl font-semibold">Community Hub</h2>
+            <p className="text-muted-foreground">Learn from shared workplace scenarios and contribute your own</p>
+          </div>
+        </div>
+        
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load community data: {scenariosError}
+          </AlertDescription>
+        </Alert>
+        
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Button onClick={refetchScenarios}>
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -164,11 +206,12 @@ export function CommunityHub() {
               {selectedCategory === "all" ? "All Scenarios" : categories.find(c => c.id === selectedCategory)?.name}
             </h3>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>{filteredScenarios.length} scenarios</span>
+              {scenariosLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              <span>{scenariosData?.scenarios?.length || 0} scenarios</span>
             </div>
           </div>
 
-          {filteredScenarios.map((scenario) => (
+          {scenariosData?.scenarios?.map((scenario) => (
             <Card key={scenario.id} className="hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
@@ -176,7 +219,9 @@ export function CommunityHub() {
                     <h4 className="font-medium mb-1">{scenario.title}</h4>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Avatar className="h-5 w-5">
-                        <AvatarFallback className="text-xs">{scenario.author.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                        <AvatarFallback className="text-xs">
+                          {scenario.author.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
                       </Avatar>
                       <span>{scenario.author}</span>
                       <span>•</span>
@@ -216,7 +261,13 @@ export function CommunityHub() {
                 {/* Actions */}
                 <div className="flex items-center justify-between pt-2 border-t">
                   <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="sm" className="text-muted-foreground">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-muted-foreground"
+                      onClick={() => handleVote(scenario.id, 'up')}
+                      disabled={actionLoading}
+                    >
                       <Heart className="h-4 w-4 mr-1" />
                       {scenario.votes}
                     </Button>
@@ -224,7 +275,13 @@ export function CommunityHub() {
                       <MessageSquare className="h-4 w-4 mr-1" />
                       {scenario.comments}
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-muted-foreground"
+                      onClick={() => handleBookmark(scenario.id)}
+                      disabled={actionLoading}
+                    >
                       <Bookmark className="h-4 w-4 mr-1" />
                       {scenario.bookmarks}
                     </Button>
@@ -237,7 +294,7 @@ export function CommunityHub() {
             </Card>
           ))}
 
-          {filteredScenarios.length === 0 && (
+          {(!scenariosData?.scenarios || scenariosData.scenarios.length === 0) && !scenariosLoading && (
             <Card>
               <CardContent className="py-12 text-center">
                 <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
@@ -260,7 +317,22 @@ export function CommunityHub() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {trendingTopics.map((topic, index) => (
+            {trendingLoading && (
+              <div className="text-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+              </div>
+            )}
+            
+            {trendingError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Failed to load trending topics
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {trendingTopics?.map((topic, index) => (
               <div key={index} className="p-3 bg-accent/50 rounded-lg cursor-pointer hover:bg-accent transition-colors">
                 <p className="text-sm font-medium mb-1">{topic.topic}</p>
                 <p className="text-xs text-muted-foreground">
@@ -279,24 +351,43 @@ export function CommunityHub() {
           <CardDescription>See how our community is helping each other grow</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">2,847</div>
-              <div className="text-sm text-muted-foreground">Scenarios Shared</div>
+          {statsLoading ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">15,623</div>
-              <div className="text-sm text-muted-foreground">People Helped</div>
+          ) : statsError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>Failed to load community stats</AlertDescription>
+            </Alert>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">
+                  {stats?.scenariosShared?.toLocaleString() || '0'}
+                </div>
+                <div className="text-sm text-muted-foreground">Scenarios Shared</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">
+                  {stats?.peopleHelped?.toLocaleString() || '0'}
+                </div>
+                <div className="text-sm text-muted-foreground">People Helped</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">
+                  {stats?.helpfulPercentage || 0}%
+                </div>
+                <div className="text-sm text-muted-foreground">Found Solutions Helpful</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">
+                  {stats?.activeContributors?.toLocaleString() || '0'}
+                </div>
+                <div className="text-sm text-muted-foreground">Active Contributors</div>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">94%</div>
-              <div className="text-sm text-muted-foreground">Found Solutions Helpful</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">1,205</div>
-              <div className="text-sm text-muted-foreground">Active Contributors</div>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>
